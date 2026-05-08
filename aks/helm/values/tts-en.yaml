@@ -1,0 +1,35 @@
+# Helm values for TTS en-IN (NeerjaNeural)
+# Install: helm install tts-en microsoft/cognitive-services-speech-onpremise -n speech-tts-en --create-namespace -f tts-en.yaml --set textToSpeech.image.args.billing=$BILLING --set textToSpeech.image.args.apikey=$KEY
+#
+# Note: chart's textToSpeech sub-chart was originally for legacy non-neural TTS.
+# Override image.repository to point at neural-text-to-speech; container args (eula/billing/apikey) are identical so it works.
+
+speechToText:
+  enabled: false                   # disable STT sub-chart for TTS-only release
+
+textToSpeech:
+  enabled: true
+  # Chart resource calc for TTS: cpu_req = numberOfConcurrentRequest * 600m * 2 (when turbo).
+  # Neural TTS needs ~6 cores per pod (matches local docker-compose cpus: 6).
+  # 5 * 600 * 2 = 6000m req, 12000m limit -> matches.
+  numberOfConcurrentRequest: 5
+  optimizeForTurboMode: true
+  image:
+    registry: mcr.microsoft.com
+    repository: azure-cognitive-services/speechservices/neural-text-to-speech
+    tag: 4.4.0-amd64-en-in-neerjaneural
+    args:
+      eula: accept
+  service:
+    type: LoadBalancer
+    port: 80
+    autoScaler:
+      enabled: false
+      minAvailablePods: 1
+      maxAvailablePods: 2
+    podDisruption:
+      enabled: true
+      maxUnavailable: 0
+
+textanalytics:
+  enabled: false

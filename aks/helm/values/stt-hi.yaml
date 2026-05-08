@@ -1,0 +1,29 @@
+# Helm values for STT hi-IN
+# Install: helm install stt-hi microsoft/cognitive-services-speech-onpremise -n speech-stt-hi --create-namespace -f stt-hi.yaml --set speechToText.image.args.billing=$BILLING --set speechToText.image.args.apikey=$KEY
+
+speechToText:
+  enabled: true
+  numberOfConcurrentRequest: 2
+  optimizeForAudioFile: false
+  image:
+    registry: mcr.microsoft.com
+    repository: azure-cognitive-services/speechservices/speech-to-text
+    tag: 5.2.0-amd64-hi-in
+    args:
+      eula: accept
+  service:
+    type: LoadBalancer
+    port: 80
+    autoScaler:
+      enabled: false
+      minAvailablePods: 1
+      maxAvailablePods: 2
+    podDisruption:
+      enabled: true
+      maxUnavailable: 0
+
+textToSpeech:
+  enabled: false
+
+textanalytics:
+  enabled: false

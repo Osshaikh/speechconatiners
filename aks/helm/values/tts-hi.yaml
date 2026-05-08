@@ -1,0 +1,29 @@
+# Helm values for TTS hi-IN (SwaraNeural)
+# Install: helm install tts-hi microsoft/cognitive-services-speech-onpremise -n speech-tts-hi --create-namespace -f tts-hi.yaml --set textToSpeech.image.args.billing=$BILLING --set textToSpeech.image.args.apikey=$KEY
+
+speechToText:
+  enabled: false
+
+textToSpeech:
+  enabled: true
+  numberOfConcurrentRequest: 5
+  optimizeForTurboMode: true
+  image:
+    registry: mcr.microsoft.com
+    repository: azure-cognitive-services/speechservices/neural-text-to-speech
+    tag: 4.4.0-amd64-hi-in-swaraneural
+    args:
+      eula: accept
+  service:
+    type: LoadBalancer
+    port: 80
+    autoScaler:
+      enabled: false
+      minAvailablePods: 1
+      maxAvailablePods: 2
+    podDisruption:
+      enabled: true
+      maxUnavailable: 0
+
+textanalytics:
+  enabled: false

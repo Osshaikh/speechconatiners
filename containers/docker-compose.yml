@@ -1,0 +1,58 @@
+name: speech-containers
+
+services:
+  stt-en:
+    image: mcr.microsoft.com/azure-cognitive-services/speechservices/speech-to-text:5.2.0-amd64-en-in
+    container_name: stt-en
+    ports:
+      - "5001:5000"
+    cpus: 6
+    mem_limit: 10g
+    restart: unless-stopped
+    env_file: .env
+    command: >
+      Eula=accept
+      Billing=${SPEECH_BILLING_ENDPOINT}
+      ApiKey=${SPEECH_API_KEY}
+
+  stt-hi:
+    image: mcr.microsoft.com/azure-cognitive-services/speechservices/speech-to-text:5.2.0-amd64-hi-in
+    container_name: stt-hi
+    ports:
+      - "5002:5000"
+    cpus: 6
+    mem_limit: 10g
+    restart: unless-stopped
+    env_file: .env
+    command: >
+      Eula=accept
+      Billing=${SPEECH_BILLING_ENDPOINT}
+      ApiKey=${SPEECH_API_KEY}
+
+  tts-en:
+    image: mcr.microsoft.com/azure-cognitive-services/speechservices/neural-text-to-speech:4.4.0-amd64-en-in-neerjaneural
+    container_name: tts-en
+    ports:
+      - "5003:5000"
+    cpus: 6
+    mem_limit: 12g
+    restart: unless-stopped
+    env_file: .env
+    command: >
+      Eula=accept
+      Billing=${SPEECH_BILLING_ENDPOINT}
+      ApiKey=${SPEECH_API_KEY}
+
+  tts-hi:
+    image: mcr.microsoft.com/azure-cognitive-services/speechservices/neural-text-to-speech:4.4.0-amd64-hi-in-swaraneural
+    container_name: tts-hi
+    ports:
+      - "5004:5000"
+    cpus: 6
+    mem_limit: 12g
+    restart: unless-stopped
+    env_file: .env
+    command: >
+      Eula=accept
+      Billing=${SPEECH_BILLING_ENDPOINT}
+      ApiKey=${SPEECH_API_KEY}

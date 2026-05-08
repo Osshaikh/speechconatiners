@@ -1,0 +1,223 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Azure Speech Container Sizing Calculator</title>
+<style>
+  :root {
+    --bg: #faf7f5; --surface: #fff; --border: #e6dfd7;
+    --text: #2a2520; --text-dim: #7a6f64;
+    --accent: #c2410c; --accent-soft: #fde7d3;
+    --ok: #65a30d; --warn: #d97706; --err: #be123c;
+    --code-bg: #2a2520; --code-text: #faf7f5;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; font-family: "Crimson Pro", Georgia, serif; background: var(--bg); color: var(--text); padding: 32px 24px; line-height: 1.5; }
+  .wrap { max-width: 980px; margin: 0 auto; }
+  h1 { font-size: 34px; margin: 0 0 4px; letter-spacing: -0.01em; }
+  .sub { color: var(--text-dim); font-style: italic; margin-bottom: 32px; }
+  .grid { display: grid; grid-template-columns: 320px 1fr; gap: 24px; }
+  @media (max-width: 800px) { .grid { grid-template-columns: 1fr; } }
+
+  .card { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 20px 22px; }
+  .card h2 { margin: 0 0 16px; font-size: 18px; font-family: "DM Sans", system-ui, sans-serif; font-weight: 600; letter-spacing: 0.02em; text-transform: uppercase; color: var(--text-dim); }
+
+  .input-row { display: flex; flex-direction: column; gap: 4px; margin-bottom: 14px; }
+  .input-row label { font-size: 13px; color: var(--text-dim); font-family: "DM Sans", sans-serif; }
+  .input-row input { font: inherit; padding: 8px 10px; border: 1px solid var(--border); border-radius: 6px; background: var(--bg); color: var(--text); }
+  .input-row input:focus { outline: none; border-color: var(--accent); }
+  .hint { font-size: 12px; color: var(--text-dim); }
+
+  .kpis { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-bottom: 20px; }
+  .kpi { background: var(--accent-soft); border-radius: 8px; padding: 14px; }
+  .kpi .v { font-size: 28px; font-weight: 700; color: var(--accent); font-family: "DM Sans", sans-serif; }
+  .kpi .l { font-size: 12px; color: var(--text-dim); margin-top: 2px; font-family: "DM Sans", sans-serif; }
+
+  table { width: 100%; border-collapse: collapse; font-family: "DM Sans", sans-serif; font-size: 14px; }
+  th, td { padding: 8px 10px; text-align: left; border-bottom: 1px solid var(--border); }
+  th { color: var(--text-dim); font-weight: 600; font-size: 12px; text-transform: uppercase; letter-spacing: 0.04em; }
+  td.num { font-variant-numeric: tabular-nums; text-align: right; }
+  tfoot td { font-weight: 600; border-top: 2px solid var(--text); border-bottom: 0; padding-top: 12px; }
+
+  details { margin-top: 18px; }
+  summary { cursor: pointer; font-family: "DM Sans", sans-serif; font-size: 13px; color: var(--text-dim); padding: 6px 0; }
+  details[open] summary { color: var(--accent); }
+  .formula { background: var(--code-bg); color: var(--code-text); border-radius: 6px; padding: 12px; font-family: "JetBrains Mono", Consolas, monospace; font-size: 12px; line-height: 1.6; margin-top: 10px; white-space: pre; overflow-x: auto; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Speech container sizing calculator</h1>
+  <p class="sub">Plug in your call profile. The right pane updates live.</p>
+
+  <div class="grid">
+    <!-- Inputs -->
+    <div class="card">
+      <h2>Inputs</h2>
+
+      <div class="input-row"><label>Calls per month</label>
+        <input id="callsPerMonth" type="number" value="100000" min="1" /></div>
+
+      <div class="input-row"><label>Average call duration (seconds)</label>
+        <input id="avgCallSec" type="number" value="90" min="1" /></div>
+
+      <div class="input-row"><label>TTS share of audio (%)</label>
+        <input id="ttsShare" type="number" value="80" min="0" max="100" /></div>
+
+      <div class="input-row"><label>Business hours per day</label>
+        <input id="hoursPerDay" type="number" value="12" min="1" max="24" /></div>
+
+      <div class="input-row"><label>Working days per month</label>
+        <input id="daysPerMonth" type="number" value="22" min="1" max="31" /></div>
+
+      <div class="input-row"><label>Peak factor (× avg)</label>
+        <input id="peakFactor" type="number" value="4" min="1" step="0.1" /></div>
+
+      <div class="input-row"><label>Number of locales (STT images)</label>
+        <input id="locales" type="number" value="2" min="1" max="10" /></div>
+
+      <div class="input-row"><label>Number of TTS voices</label>
+        <input id="voices" type="number" value="2" min="1" max="10" /></div>
+
+      <div class="input-row"><label>Sessions per STT container (cap)</label>
+        <input id="sttCap" type="number" value="16" min="1" />
+        <span class="hint">2 / core × 8 cores recommended = 16</span></div>
+
+      <div class="input-row"><label>Effective calls per TTS container</label>
+        <input id="ttsCap" type="number" value="50" min="1" />
+        <span class="hint">5 concurrent × ~10× RTF / call duty cycle ≈ 50</span></div>
+
+      <div class="input-row"><label>STT $ / audio-hour</label>
+        <input id="sttPrice" type="number" step="0.01" value="1.00" /></div>
+
+      <div class="input-row"><label>TTS $ / 1M characters</label>
+        <input id="ttsPrice" type="number" step="0.01" value="16.00" /></div>
+    </div>
+
+    <!-- Outputs -->
+    <div class="card">
+      <h2>Recommended sizing</h2>
+
+      <div class="kpis">
+        <div class="kpi"><div class="v" id="avgConcurrent">—</div><div class="l">avg concurrent calls</div></div>
+        <div class="kpi"><div class="v" id="peakConcurrent">—</div><div class="l">peak concurrent calls</div></div>
+        <div class="kpi"><div class="v" id="totalContainers">—</div><div class="l">containers (with N+1 HA)</div></div>
+      </div>
+
+      <table>
+        <thead><tr><th>Tier</th><th>Replicas</th><th class="num">Cores ea</th><th class="num">RAM ea (GB)</th><th class="num">Subtotal cores</th><th class="num">Subtotal RAM</th></tr></thead>
+        <tbody id="rows"></tbody>
+        <tfoot>
+          <tr><td colspan="4">Total</td><td class="num" id="totCores">—</td><td class="num" id="totRam">—</td></tr>
+        </tfoot>
+      </table>
+
+      <h2 style="margin-top: 28px;">Monthly software cost (PAYG retail)</h2>
+      <table>
+        <thead><tr><th>Item</th><th class="num">Volume</th><th class="num">Rate</th><th class="num">Monthly</th></tr></thead>
+        <tbody>
+          <tr><td>STT audio</td><td class="num" id="sttHours">—</td><td class="num" id="sttRate">$1.00 / hr</td><td class="num" id="sttCost">—</td></tr>
+          <tr><td>Neural TTS</td><td class="num" id="ttsChars">—</td><td class="num" id="ttsRate">$16.00 / 1M</td><td class="num" id="ttsCost">—</td></tr>
+        </tbody>
+        <tfoot><tr><td colspan="3">Software subtotal</td><td class="num" id="totalCost">—</td></tr></tfoot>
+      </table>
+      <p class="hint" style="margin-top: 8px;">Add Azure VM/AKS infra cost separately (3× D32s_v5 ≈ $3–5k/mo PAYG in Central India for the default scenario).</p>
+
+      <details>
+        <summary>Show the math</summary>
+        <div class="formula" id="math">—</div>
+      </details>
+    </div>
+  </div>
+</div>
+
+<script>
+const $ = (id) => document.getElementById(id);
+const fmt = (n, d=0) => n.toLocaleString(undefined, { maximumFractionDigits: d });
+const money = (n) => "$" + n.toLocaleString(undefined, { maximumFractionDigits: 0 });
+
+function recalc() {
+  const calls = +$("callsPerMonth").value;
+  const dur   = +$("avgCallSec").value;
+  const ttsPct = +$("ttsShare").value / 100;
+  const hpd   = +$("hoursPerDay").value;
+  const dpm   = +$("daysPerMonth").value;
+  const peak  = +$("peakFactor").value;
+  const locales = +$("locales").value;
+  const voices  = +$("voices").value;
+  const sttCap  = +$("sttCap").value;
+  const ttsCap  = +$("ttsCap").value;
+  const sttPrice = +$("sttPrice").value;
+  const ttsPrice = +$("ttsPrice").value;
+
+  const totalCallSec = calls * dur;
+  const businessSec  = dpm * hpd * 3600;
+  const avgCC  = totalCallSec / businessSec;
+  const peakCC = avgCC * peak;
+
+  const sttPerLocale = Math.max(1, Math.ceil(peakCC / sttCap));
+  const sttContainers = sttPerLocale * locales + locales; // +1 each for HA
+  const ttsPerVoice  = Math.max(1, Math.ceil(peakCC / ttsCap));
+  const ttsContainers = ttsPerVoice * voices + voices; // +1 each for HA
+  const lbContainers = 2;
+  const totalContainers = sttContainers + ttsContainers + lbContainers;
+
+  const rows = [
+    { name: "API gateway / LB",  rep: lbContainers, cpu: 2, ram: 4 },
+    { name: "STT (per locale × " + locales + ")", rep: sttContainers, cpu: 8, ram: 12 },
+    { name: "TTS (per voice × "  + voices + ")",  rep: ttsContainers, cpu: 8, ram: 16 },
+  ];
+
+  const tbody = $("rows");
+  tbody.innerHTML = "";
+  let totC = 0, totR = 0;
+  for (const r of rows) {
+    const sc = r.rep * r.cpu, sr = r.rep * r.ram;
+    totC += sc; totR += sr;
+    tbody.insertAdjacentHTML("beforeend",
+      `<tr><td>${r.name}</td><td>${r.rep}</td><td class="num">${r.cpu}</td><td class="num">${r.ram}</td><td class="num">${sc}</td><td class="num">${sr} GB</td></tr>`);
+  }
+
+  $("avgConcurrent").textContent = fmt(avgCC, 1);
+  $("peakConcurrent").textContent = fmt(peakCC, 0);
+  $("totalContainers").textContent = totalContainers;
+  $("totCores").textContent = totC;
+  $("totRam").textContent = totR + " GB";
+
+  // Cost
+  const sttHours = (calls * dur * (1 - ttsPct)) / 3600;
+  const ttsHours = (calls * dur * ttsPct) / 3600;
+  const ttsChars = ttsHours * 3600 * 15; // ~15 chars/sec spoken pace
+  const sttCost = sttHours * sttPrice;
+  const ttsCost = (ttsChars / 1_000_000) * ttsPrice;
+
+  $("sttHours").textContent = fmt(sttHours, 0) + " hr";
+  $("ttsChars").textContent = fmt(ttsChars, 0) + " chars";
+  $("sttRate").textContent = "$" + sttPrice.toFixed(2) + " / hr";
+  $("ttsRate").textContent = "$" + ttsPrice.toFixed(2) + " / 1M";
+  $("sttCost").textContent = money(sttCost);
+  $("ttsCost").textContent = money(ttsCost);
+  $("totalCost").textContent = money(sttCost + ttsCost);
+
+  $("math").textContent =
+`Total call-seconds  = ${fmt(calls)} × ${dur} = ${fmt(totalCallSec)} s
+Business seconds/mo = ${dpm} d × ${hpd} h × 3600 = ${fmt(businessSec)} s
+Avg concurrent      = ${fmt(totalCallSec)} / ${fmt(businessSec)} = ${fmt(avgCC, 2)} calls
+Peak concurrent     = ${fmt(avgCC, 2)} × ${peak} = ${fmt(peakCC, 1)} calls
+
+STT per locale      = ceil(${fmt(peakCC, 1)} / ${sttCap}) = ${sttPerLocale}
+STT total (with HA) = ${sttPerLocale} × ${locales} + ${locales} = ${sttContainers}
+TTS per voice       = ceil(${fmt(peakCC, 1)} / ${ttsCap}) = ${ttsPerVoice}
+TTS total (with HA) = ${ttsPerVoice} × ${voices} + ${voices} = ${ttsContainers}
+
+STT audio hours/mo  = ${fmt(calls)} × ${dur} × ${(1-ttsPct).toFixed(2)} / 3600 = ${fmt(sttHours)} hr
+TTS audio hours/mo  = ${fmt(calls)} × ${dur} × ${ttsPct.toFixed(2)} / 3600 = ${fmt(ttsHours)} hr
+TTS chars (~15/sec) = ${fmt(ttsChars)} chars`;
+}
+
+document.querySelectorAll("input").forEach((el) => el.addEventListener("input", recalc));
+recalc();
+</script>
+</body>
+</html>

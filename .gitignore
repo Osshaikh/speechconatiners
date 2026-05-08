@@ -1,0 +1,17 @@
+# ignore real secrets
+containers/.env
+
+# node
+web/node_modules
+web/dist
+web/.vite
+
+# build output
+web/tsconfig.tsbuildinfo
+
+# misc
+.DS_Store
+*.log
+*.tmp
+.vscode/
+.idea/

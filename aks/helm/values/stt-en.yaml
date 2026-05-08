@@ -1,0 +1,35 @@
+# Helm values for STT en-IN
+# Install: helm install stt-en microsoft/cognitive-services-speech-onpremise -n speech-stt-en --create-namespace -f stt-en.yaml --set speechToText.image.args.billing=$BILLING --set speechToText.image.args.apikey=$KEY
+#
+# Notes (per chart limitations on K8s 1.33):
+# - autoScaler.enabled: false  (chart uses deprecated autoscaling/v2beta2 API, removed in K8s 1.26+)
+# - resources are chart-calculated from numberOfConcurrentRequest (memory locked at 4Gi req / 8Gi limit)
+# - one chart install per namespace because chart hardcodes Deployment/Service name "speech-to-text"
+
+speechToText:
+  enabled: true
+  numberOfConcurrentRequest: 2     # chart calc: cpu = 1150m * 2 = 2.3 cores per pod
+  optimizeForAudioFile: false
+  image:
+    registry: mcr.microsoft.com
+    repository: azure-cognitive-services/speechservices/speech-to-text
+    tag: 5.2.0-amd64-en-in
+    args:
+      eula: accept
+      # billing & apikey injected via --set on helm install
+  service:
+    type: LoadBalancer
+    port: 80
+    autoScaler:
+      enabled: false               # chart's HPA template uses deprecated v2beta2; broken on K8s 1.33
+      minAvailablePods: 1          # acts as initial replicas (chart sets replicas: minAvailablePods)
+      maxAvailablePods: 2
+    podDisruption:
+      enabled: true
+      maxUnavailable: 0
+
+textToSpeech:
+  enabled: false                   # disable TTS sub-chart for STT-only release
+
+textanalytics:
+  enabled: false
