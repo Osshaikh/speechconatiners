@@ -2,7 +2,7 @@ mode: tts
 
 image:
   # Voice: SwaraNeural (hi-IN female). Alternatives: madhurneural (M), aartineural (F)
-  tag: 3.0.0-amd64-hi-in-swaraneural
+  tag: 4.6.0-amd64-hi-in-swaraneural
 
 resources:
   requests:

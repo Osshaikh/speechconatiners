@@ -17,8 +17,8 @@ image:
   # Examples:
   #   STT en-US:        5.3.0-amd64-en-us
   #   STT hi-IN:        5.3.0-amd64-hi-in
-  #   TTS Hindi Swara:  3.0.0-amd64-hi-in-swaraneural
-  #   TTS en-US Ava:    3.0.0-amd64-en-us-avaneural
+  #   TTS Hindi Swara:  4.6.0-amd64-hi-in-swaraneural
+  #   TTS en-US Ava:    4.6.0-amd64-en-us-avaneural
   tag: 5.3.0-amd64-en-us
   pullPolicy: IfNotPresent
   pullSecrets: []
