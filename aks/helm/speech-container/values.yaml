@@ -67,10 +67,12 @@ env:
 replicaCount: 1
 
 autoscaling:
-  enabled: false
+  enabled: true                       # HPA on by default — scale on CPU pressure
   minReplicas: 1
   maxReplicas: 5
   targetCPUUtilizationPercentage: 70
+  # Optional memory target — uncomment if you want to scale on memory too
+  # targetMemoryUtilizationPercentage: 80
 
 # ---- pod disruption budget ---------------------------------------------------
 podDisruptionBudget:
