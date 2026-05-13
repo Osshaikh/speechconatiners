@@ -3,7 +3,31 @@ entries:
   speech-container:
   - apiVersion: v2
     appVersion: 5.3.0
-    created: "2026-05-13T10:47:48.33303235Z"
+    created: "2026-05-13T11:26:56.163830909Z"
+    description: 'Custom Helm chart for Azure AI Speech disconnected containers (Speech-to-Text
+      and Neural Text-to-Speech). Fully parameterised CPU and memory (request + limit)
+      per container, aligned with Microsoft Learn host-resource recommendations. Replaces
+      the abandoned microsoft/cognitive-services-speech-onpremise chart (v0.3.3, June
+      2021) which hardcodes memory and computes CPU from a hidden formula. '
+    digest: 9dae0cc1e558f79fe4aac79ba9b3ec8743b1a23e6abe8cf57450eb81ca546e11
+    keywords:
+    - azure
+    - speech
+    - stt
+    - tts
+    - cognitive-services
+    - disconnected
+    maintainers:
+    - email: osshaikh@microsoft.com
+      name: Owais Shaikh
+    name: speech-container
+    type: application
+    urls:
+    - https://osshaikh.github.io/speechconatiners/speech-container-1.0.2.tgz
+    version: 1.0.2
+  - apiVersion: v2
+    appVersion: 5.3.0
+    created: "2026-05-13T11:26:56.163278469Z"
     description: 'Custom Helm chart for Azure AI Speech disconnected containers (Speech-to-Text
       and Neural Text-to-Speech). Fully parameterised CPU and memory (request + limit)
       per container, aligned with Microsoft Learn host-resource recommendations. Replaces
@@ -27,7 +51,7 @@ entries:
     version: 1.0.1
   - apiVersion: v2
     appVersion: 5.3.0
-    created: "2026-05-13T10:47:48.332446829Z"
+    created: "2026-05-13T11:26:56.162715683Z"
     description: 'Custom Helm chart for Azure AI Speech disconnected containers (Speech-to-Text
       and Neural Text-to-Speech). Fully parameterised CPU and memory (request + limit)
       per container, aligned with Microsoft Learn host-resource recommendations. Replaces
@@ -49,4 +73,4 @@ entries:
     urls:
     - https://osshaikh.github.io/speechconatiners/speech-container-1.0.0.tgz
     version: 1.0.0
-generated: "2026-05-13T10:47:48.331745419Z"
+generated: "2026-05-13T11:26:56.162004767Z"
