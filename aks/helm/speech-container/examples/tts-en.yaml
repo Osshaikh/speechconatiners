@@ -1,0 +1,29 @@
+mode: tts
+
+image:
+  # Voice: AvaNeural (en-US female)
+  tag: 3.0.0-amd64-en-us-avaneural
+
+# Neural TTS — MS Learn recommended: 8c / 16 GB (min 6c / 12 GB)
+resources:
+  requests:
+    cpu: "6"
+    memory: "12Gi"
+  limits:
+    cpu: "8"
+    memory: "16Gi"
+
+concurrency:
+  numberOfConcurrentRequest: 5
+
+replicaCount: 1
+
+autoscaling:
+  enabled: true
+  minReplicas: 1
+  maxReplicas: 4
+  targetCPUUtilizationPercentage: 70
+
+service:
+  type: LoadBalancer
+  port: 5000

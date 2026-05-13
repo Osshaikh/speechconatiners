@@ -3,10 +3,12 @@
 End-to-end reference implementation for **Azure AI Speech disconnected containers** (Speech-to-Text + Neural Text-to-Speech) covering:
 
 - Running the 4 containers locally with **Docker Compose**
-- Deploying the same 4 containers to **Azure Kubernetes Service (AKS)** using the official Microsoft Helm chart
+- Deploying the same 4 containers to **Azure Kubernetes Service (AKS)** — including a **custom Helm chart** (`speech-container`) published as a public Helm repo
 - A **React + Vite** browser UI with a **Local ↔ AKS toggle** demonstrating real STT/TTS round-trips
 - Capacity / sizing model for **100,000 voice calls per month**
 - Production hardening guidance (internal LB, APIM, private networking, NetworkPolicy, HPA)
+
+> 💡 **Why a custom chart?** The official `microsoft/cognitive-services-speech-onpremise` chart (v0.3.3, last updated June 2021) hardcodes memory in templates and computes CPU from a hidden formula, producing defaults well below MS Learn's host-resource recommendations. The custom `speech-container` chart fixes both — see [chart README](aks/helm/speech-container/README.md).
 
 > ⚠ **Demo project** — public IPs, no auth, no TLS. See `docs/61-aks-production-hardening.md` for production posture.
 
@@ -17,13 +19,45 @@ End-to-end reference implementation for **Azure AI Speech disconnected container
 ```
 .
 ├── containers/             # docker-compose.yml + .env.example for local run
-├── aks/helm/               # Helm values + installer for AKS deployment (official MS chart)
+├── aks/helm/               # AKS deployment
+│   ├── speech-container/   #   ← Custom Helm chart (recommended) — this repo also publishes it
+│   ├── values/             #   Legacy values for the upstream Microsoft chart (kept for reference)
+│   └── install.ps1         #   Legacy installer for the upstream chart
 ├── web/                    # React + Vite UI (Speech SDK in browser)
 ├── samples/                # PowerShell + Bash + Python REST/SDK samples
 ├── scripts/                # up.ps1 / down.ps1 / smoke-status.ps1 for local stack
 ├── sizing/                 # 100k calls/month capacity calculator (HTML)
 └── docs/                   # numbered docs — read in order
 ```
+
+---
+
+## Quick start (AKS — using the custom `speech-container` Helm chart)
+
+```bash
+# 1. Add the chart's Helm repo (one-time; same UX as Microsoft's repo)
+helm repo add osshaikh https://osshaikh.github.io/speechconatiners
+helm repo update
+
+# 2. Create credentials secret (per namespace)
+kubectl create namespace speech-stt-en
+kubectl create secret generic speech-credentials -n speech-stt-en \
+  --from-literal=billing=https://<your-resource>.cognitiveservices.azure.com/ \
+  --from-literal=apikey=<your-key>
+
+# 3. Install — explicit, MS Learn-aligned resources via values
+helm install speech-stt-en osshaikh/speech-container --version 1.0.0 \
+  --namespace speech-stt-en \
+  --set mode=stt \
+  --set image.tag=5.3.0-amd64-en-us \
+  --set secretRef.enabled=true \
+  --set resources.requests.cpu=6 \
+  --set resources.requests.memory=8Gi \
+  --set resources.limits.cpu=8 \
+  --set resources.limits.memory=12Gi
+```
+
+Repeat for STT hi-IN, TTS en-US, TTS hi-IN. See [chart README](aks/helm/speech-container/README.md) for full reference and example values files.
 
 ---
 

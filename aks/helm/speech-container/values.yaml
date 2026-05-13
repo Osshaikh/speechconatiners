@@ -1,0 +1,122 @@
+# =============================================================================
+#  speech-container default values
+# -----------------------------------------------------------------------------
+#  Pick mode = stt OR tts. All resource and image fields are fully overridable
+#  per release via your own values file or --set flags.
+# =============================================================================
+
+mode: stt          # stt | tts — drives image repo, port, default voice handling
+
+# ---- image -------------------------------------------------------------------
+image:
+  registry: mcr.microsoft.com
+  # STT repo: azure-cognitive-services/speechservices/speech-to-text
+  # TTS repo: azure-cognitive-services/speechservices/neural-text-to-speech
+  repository: ""    # auto-derived from mode if blank (see _helpers.tpl)
+  # Tag format: <major>.<minor>.<patch>-amd64-<locale>[-<voice>]
+  # Examples:
+  #   STT en-US:        5.3.0-amd64-en-us
+  #   STT hi-IN:        5.3.0-amd64-hi-in
+  #   TTS Hindi Swara:  3.0.0-amd64-hi-in-swaraneural
+  #   TTS en-US Ava:    3.0.0-amd64-en-us-avaneural
+  tag: 5.3.0-amd64-en-us
+  pullPolicy: IfNotPresent
+  pullSecrets: []
+
+# ---- container args (passed as docker args at runtime) -----------------------
+args:
+  eula: accept                        # MUST be 'accept'
+  billing: ""                         # https://<resource>.cognitiveservices.azure.com/
+  apikey: ""                          # Cognitive Services key (use secretRef instead in prod)
+
+# Optional: pull billing + apikey from a pre-created secret instead of inline values
+secretRef:
+  enabled: false
+  name: speech-credentials
+  billingKey: billing
+  apiKeyKey: apikey
+
+# ---- concurrency knob (informational; resources below are authoritative) -----
+concurrency:
+  numberOfConcurrentRequest: 5        # raise for higher load — must match your CPU sizing
+
+# ---- resources — MS Learn aligned defaults -----------------------------------
+# Reference: https://learn.microsoft.com/azure/ai-services/speech-service/speech-container-howto
+#   STT          : min 4c/4GB, recommended 8c/8GB + 4-8 GB for speech model => 8c/12-16 GB
+#   Neural TTS   : min 6c/12GB, recommended 8c/16 GB
+#
+# These defaults target the STT recommended sizing. Override per-release in TTS
+# values files (see examples/tts-*.yaml).
+resources:
+  requests:
+    cpu: "6"
+    memory: "8Gi"
+  limits:
+    cpu: "8"
+    memory: "12Gi"
+
+# ---- environment variables forwarded to the container -----------------------
+env:
+  # The chart adds DECODER_MAX_COUNT automatically from concurrency.numberOfConcurrentRequest
+  # Append additional environment variables here if needed.
+  extra: []
+  #   - name: ASPNETCORE_URLS
+  #     value: "http://+:5000"
+
+# ---- replicas / autoscaling --------------------------------------------------
+replicaCount: 1
+
+autoscaling:
+  enabled: false
+  minReplicas: 1
+  maxReplicas: 5
+  targetCPUUtilizationPercentage: 70
+
+# ---- pod disruption budget ---------------------------------------------------
+podDisruptionBudget:
+  enabled: false
+  minAvailable: 1
+
+# ---- service -----------------------------------------------------------------
+service:
+  type: LoadBalancer                  # ClusterIP | NodePort | LoadBalancer
+  # Default port auto-selected by mode: stt=5000, tts=5000
+  port: 5000
+  targetPort: 5000
+  annotations: {}
+  # For Azure internal LB:
+  #   service.beta.kubernetes.io/azure-load-balancer-internal: "true"
+
+# ---- pod scheduling ----------------------------------------------------------
+nodeSelector: {}
+tolerations: []
+affinity: {}
+priorityClassName: ""
+
+# ---- probes ------------------------------------------------------------------
+readinessProbe:
+  enabled: true
+  path: /ready                        # supported on STT/TTS 4.x+
+  initialDelaySeconds: 60
+  periodSeconds: 30
+  failureThreshold: 6
+
+livenessProbe:
+  enabled: true
+  path: /status
+  initialDelaySeconds: 120
+  periodSeconds: 60
+  failureThreshold: 3
+
+# ---- security context --------------------------------------------------------
+podSecurityContext:
+  runAsNonRoot: false                 # Speech containers require root for model load
+containerSecurityContext:
+  allowPrivilegeEscalation: false
+  readOnlyRootFilesystem: false
+
+# ---- service account ---------------------------------------------------------
+serviceAccount:
+  create: true
+  name: ""                            # auto-derived if blank
+  annotations: {}

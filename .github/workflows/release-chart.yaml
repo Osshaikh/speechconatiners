@@ -1,0 +1,58 @@
+name: Release Helm chart
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'aks/helm/speech-container/**'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout main
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Configure git
+        run: |
+          git config user.name  "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+      - name: Install Helm
+        uses: azure/setup-helm@v4
+        with:
+          version: v3.14.0
+
+      - name: Package chart
+        run: |
+          mkdir -p /tmp/pkg
+          helm package aks/helm/speech-container --destination /tmp/pkg
+
+      - name: Checkout gh-pages
+        run: |
+          git fetch origin gh-pages
+          git worktree add /tmp/gh-pages gh-pages
+
+      - name: Update repo index
+        run: |
+          cp /tmp/pkg/*.tgz /tmp/gh-pages/
+          cd /tmp/gh-pages
+          helm repo index . --url https://osshaikh.github.io/speechconatiners
+
+      - name: Commit and push
+        run: |
+          cd /tmp/gh-pages
+          git add -A
+          if ! git diff --cached --quiet; then
+            git commit -m "Publish $(ls /tmp/pkg/*.tgz | xargs -n1 basename)"
+            git push origin gh-pages
+          else
+            echo "No chart changes to publish."
+          fi

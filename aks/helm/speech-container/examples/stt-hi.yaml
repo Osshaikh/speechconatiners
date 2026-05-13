@@ -1,0 +1,27 @@
+mode: stt
+
+image:
+  tag: 5.3.0-amd64-hi-in
+
+resources:
+  requests:
+    cpu: "6"
+    memory: "8Gi"
+  limits:
+    cpu: "8"
+    memory: "12Gi"
+
+concurrency:
+  numberOfConcurrentRequest: 5
+
+replicaCount: 1
+
+autoscaling:
+  enabled: true
+  minReplicas: 1
+  maxReplicas: 4
+  targetCPUUtilizationPercentage: 70
+
+service:
+  type: LoadBalancer
+  port: 5000

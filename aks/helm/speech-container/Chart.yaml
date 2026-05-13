@@ -1,0 +1,20 @@
+apiVersion: v2
+appVersion: 5.3.0
+description: 'Custom Helm chart for Azure AI Speech disconnected containers (Speech-to-Text
+  and Neural Text-to-Speech). Fully parameterised CPU and memory (request + limit)
+  per container, aligned with Microsoft Learn host-resource recommendations. Replaces
+  the abandoned microsoft/cognitive-services-speech-onpremise chart (v0.3.3, June
+  2021) which hardcodes memory and computes CPU from a hidden formula. '
+keywords:
+- azure
+- speech
+- stt
+- tts
+- cognitive-services
+- disconnected
+maintainers:
+- email: osshaikh@microsoft.com
+  name: Owais Shaikh
+name: speech-container
+type: application
+version: 1.0.0
