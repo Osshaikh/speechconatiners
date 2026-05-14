@@ -1,0 +1,52 @@
+# =============================================================================
+# Production overrides — apply ON TOP of a per-release values file.
+#
+# Usage:
+#   helm upgrade --install stt-en osshaikh/speech-container \
+#     -f stt-en.yaml \
+#     -f prod-overrides.yaml      # later -f wins; this overlays the example
+#
+# Reusable across all 4 releases (stt-en, stt-hi, tts-en, tts-hi).
+# =============================================================================
+
+# ---- Pod scheduling: toleration + soft affinity (NO hard nodeSelector) ------
+#
+# Why this combination:
+#   * Toleration  -> lets the pod LAND on the tainted speech pool.
+#   * Soft affinity (preferredDuringScheduling) -> the scheduler PREFERS
+#     speech-pool nodes, but if all of them are unavailable (cordoned, drained,
+#     down, full), the pod falls back to ANY node it fits on. No more "stuck
+#     in Pending forever" if one node group goes sideways.
+#   * Hard nodeSelector intentionally OMITTED — that's the failure mode we
+#     want to avoid.
+#
+# Trade-off: when speech nodes are healthy + have capacity, pods always land
+# there (weight 100). When they're not, pods land on the next best node that
+# tolerates the pod's resource requests. You may want to combine this with a
+# PodDisruptionBudget so eviction during node maintenance is graceful.
+
+tolerations:
+  - key: workload
+    operator: Equal
+    value: speech
+    effect: NoSchedule
+
+affinity:
+  nodeAffinity:
+    preferredDuringSchedulingIgnoredDuringExecution:
+      - weight: 100
+        preference:
+          matchExpressions:
+            - key: workload
+              operator: In
+              values: ["speech"]
+
+# ---- Optional: disruption budget (uncomment for prod) -----------------------
+# podDisruptionBudget:
+#   enabled: true
+#   minAvailable: 1
+
+# ---- Optional: tighten or loosen unified resource defaults ------------------
+# resources:
+#   requests: { cpu: "12", memory: "12Gi" }
+#   limits:   { cpu: "16", memory: "24Gi" }

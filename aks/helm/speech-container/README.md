@@ -119,6 +119,28 @@ helm upgrade --install speech-stt-en . \
 | `ingress.path` | `""` (REQUIRED if enabled) | Per-release prefix, e.g. `/stt/en-US` |
 | `podDisruptionBudget.enabled` | `false` | Recommended for prod |
 
+## Pod scheduling — toleration + soft affinity (recommended)
+
+Avoid hard `nodeSelector` for production. It pins pods to a single label and
+they get **stuck `Pending`** if that node group is cordoned, drained, down, or
+out of capacity. Use **toleration + soft (preferred) nodeAffinity** instead:
+
+| Mechanism | Role |
+|---|---|
+| Taint on node (`workload=speech:NoSchedule`) | Repels everything except Speech pods |
+| Toleration on pod | Lets the pod *land* on tainted speech nodes |
+| Soft `preferredDuringScheduling` nodeAffinity | *Prefers* speech nodes (weight 100), but falls back to any node that fits if speech pool is unhealthy |
+
+Apply via `examples/prod-overrides.yaml`:
+
+```bash
+helm upgrade --install stt-en osshaikh/speech-container \
+  -f stt-en.yaml \
+  -f prod-overrides.yaml
+```
+
+Same overrides file is reusable across all 4 releases.
+
 ## Resource tuning (override defaults at install / upgrade)
 
 Defaults (8c/8Gi req, 8c/16Gi lim) are a unified safety net for both STT and

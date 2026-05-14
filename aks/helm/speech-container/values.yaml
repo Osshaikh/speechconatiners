@@ -125,6 +125,12 @@ ingress:
     secretName: ""                    # name of pre-existing TLS secret (cert-manager or BYO)
 
 # ---- pod scheduling ----------------------------------------------------------
+# Defaults are intentionally empty — chart stays environment-neutral.
+#
+# RECOMMENDED for production: use toleration + SOFT (preferred) nodeAffinity,
+# NOT hard nodeSelector. See examples/prod-overrides.yaml for the full pattern.
+# Soft affinity prefers your speech pool but lets pods fall back to any node
+# if the speech pool is unavailable, avoiding "stuck Pending" failure modes.
 nodeSelector: {}
 tolerations: []
 affinity: {}
