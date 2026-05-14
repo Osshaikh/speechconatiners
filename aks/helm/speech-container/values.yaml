@@ -42,18 +42,21 @@ concurrency:
 
 # ---- resources — MS Learn aligned defaults -----------------------------------
 # Reference: https://learn.microsoft.com/azure/ai-services/speech-service/speech-container-howto
-#   STT          : min 4c/4GB, recommended 8c/8GB + 4-8 GB for speech model => 8c/12-16 GB
+#   STT          : min 4c/4GB, recommended 8c/8GB + 4-8 GB for speech model
 #   Neural TTS   : min 6c/12GB, recommended 8c/16 GB
 #
-# These defaults target the STT recommended sizing. Override per-release in TTS
-# values files (see examples/tts-*.yaml).
+# Unified default: 8 cores + 8 GB request, burstable to 16 GB.
+# This sizing covers BOTH modes:
+#   - STT: 8 GB base + room for 4-8 GB speech model load (handled by limit headroom)
+#   - TTS: 8 GB base, expands to 16 GB during synthesis bursts
+# Override per-release if you need tighter sizing.
 resources:
   requests:
-    cpu: "6"
+    cpu: "8"
     memory: "8Gi"
   limits:
     cpu: "8"
-    memory: "12Gi"
+    memory: "16Gi"
 
 # ---- environment variables forwarded to the container -----------------------
 env:

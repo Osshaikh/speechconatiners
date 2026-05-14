@@ -3,14 +3,7 @@ mode: stt
 image:
   tag: 5.3.0-amd64-en-us
 
-# STT — MS Learn recommended: 8c / 8GB + 4-8 GB model = 12-16 GB total
-resources:
-  requests:
-    cpu: "6"
-    memory: "8Gi"
-  limits:
-    cpu: "8"
-    memory: "12Gi"
+# Inherits unified defaults from values.yaml: 8c / 8Gi req, 8c / 16Gi limit
 
 concurrency:
   numberOfConcurrentRequest: 5

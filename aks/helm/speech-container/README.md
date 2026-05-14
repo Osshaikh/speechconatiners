@@ -103,10 +103,10 @@ helm upgrade --install speech-stt-en . \
 
 | Key | Default | Notes |
 |---|---|---|
-| `resources.requests.cpu` | `"6"` | Cores |
-| `resources.requests.memory` | `"8Gi"` | STT default; bump to `"12Gi"` for TTS |
+| `resources.requests.cpu` | `"8"` | Cores (unified default for STT and TTS) |
+| `resources.requests.memory` | `"8Gi"` | Base memory request |
 | `resources.limits.cpu` | `"8"` | Cores |
-| `resources.limits.memory` | `"12Gi"` | STT default; bump to `"16Gi"` for TTS |
+| `resources.limits.memory` | `"16Gi"` | Burstable to 16Gi (covers TTS synthesis + STT model load) |
 | `concurrency.numberOfConcurrentRequest` | `5` | Sets `DECODER_MAX_COUNT` env var |
 | `replicaCount` | `1` | Static replicas (ignored if HPA enabled) |
 | `autoscaling.enabled` | `true` | Enable HPA v2 (CPU-based, 70% target) |
