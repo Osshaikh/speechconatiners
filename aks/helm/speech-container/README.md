@@ -12,7 +12,7 @@ The official chart has three blocking problems:
 |---|---|---|
 | Memory request/limit | **Hardcoded** in `_image.tpl` (STT 4Gi/8Gi, TTS 2Gi/3Gi) | Fully parameterised via `resources.requests.memory` / `resources.limits.memory` |
 | CPU | Computed via hidden formula (`numberOfConcurrentRequest × 1250m` for STT, `× 600m` for TTS) | Direct `resources.requests.cpu` / `resources.limits.cpu` |
-| Defaults | STT 2.5c/4Gi, TTS 1.2c/2Gi — well below MS Learn minimums | STT 6c/8Gi req, 8c/12Gi lim; TTS 6c/12Gi req, 8c/16Gi lim (matches MS Learn recommended) |
+| Defaults | STT 2.5c/4Gi, TTS 1.2c/2Gi — well below MS Learn minimums | Unified 8c/8Gi req → 8c/16Gi lim (matches MS Learn recommended for both modes) |
 | Last update | June 2021 | Maintained alongside this project |
 | Single chart for both modes | No — separate sub-charts | Yes — `mode: stt \| tts` switch |
 | HPA API version | autoscaling/v1 | autoscaling/v2 (with behavior policies) |
@@ -118,6 +118,56 @@ helm upgrade --install speech-stt-en . \
 | `ingress.host` | `speech.bfl.internal` | Shared hostname across all 4 releases |
 | `ingress.path` | `""` (REQUIRED if enabled) | Per-release prefix, e.g. `/stt/en-US` |
 | `podDisruptionBudget.enabled` | `false` | Recommended for prod |
+
+## Resource tuning (override defaults at install / upgrade)
+
+Defaults (8c/8Gi req, 8c/16Gi lim) are a unified safety net for both STT and
+TTS. You can override any subset of `resources.*` at install or upgrade time
+without modifying the chart. Helm value precedence (later wins):
+
+```
+chart values.yaml  →  -f file1.yaml  →  -f file2.yaml  →  --set flags
+   (defaults)         (examples)        (env overrides)    (CLI)
+```
+
+**Pattern A — quick CLI override:**
+
+```bash
+helm upgrade --install tts-en osshaikh/speech-container \
+  -f tts-en.yaml \
+  --set resources.requests.cpu=12 \
+  --set resources.requests.memory=12Gi \
+  --set resources.limits.cpu=16 \
+  --set resources.limits.memory=24Gi
+```
+
+**Pattern B — environment overrides file (recommended for production):**
+
+Create `prod-overrides.yaml`:
+```yaml
+resources:
+  requests: { cpu: "12", memory: "12Gi" }
+  limits:   { cpu: "16", memory: "24Gi" }
+```
+
+Apply alongside the per-release values file:
+```bash
+helm upgrade --install tts-en osshaikh/speech-container \
+  -f tts-en.yaml \
+  -f prod-overrides.yaml          # later -f wins
+```
+
+Same `prod-overrides.yaml` can be reused across all 4 releases.
+
+**Pattern C — patch one field on a running release:**
+
+```bash
+helm upgrade tts-en osshaikh/speech-container \
+  --reuse-values \
+  --set resources.limits.memory=24Gi
+```
+`--reuse-values` keeps every other value from the previous install and only
+patches the field you specify. Triggers a rolling pod restart.
 
 ## Ingress (shared hostname for all 4 containers)
 
