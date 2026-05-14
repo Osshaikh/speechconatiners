@@ -3,13 +3,13 @@ entries:
   speech-container:
   - apiVersion: v2
     appVersion: 5.3.0
-    created: "2026-05-14T20:41:40.833451801Z"
+    created: "2026-05-14T20:49:17.715699505Z"
     description: 'Custom Helm chart for Azure AI Speech disconnected containers (Speech-to-Text
       and Neural Text-to-Speech). Fully parameterised CPU and memory (request + limit)
       per container, aligned with Microsoft Learn host-resource recommendations. Replaces
       the abandoned microsoft/cognitive-services-speech-onpremise chart (v0.3.3, June
       2021) which hardcodes memory and computes CPU from a hidden formula. '
-    digest: 8102ac27a3b50e750276b640eb65c50efdb22c9037dba94476c0feb510882529
+    digest: 08014374afa38dc8345641c70e9192a3b031e502aa08b4a172809416f9753f95
     keywords:
     - azure
     - speech
@@ -27,7 +27,7 @@ entries:
     version: 1.1.1
   - apiVersion: v2
     appVersion: 5.3.0
-    created: "2026-05-14T20:41:40.83283375Z"
+    created: "2026-05-14T20:49:17.714934538Z"
     description: 'Custom Helm chart for Azure AI Speech disconnected containers (Speech-to-Text
       and Neural Text-to-Speech). Fully parameterised CPU and memory (request + limit)
       per container, aligned with Microsoft Learn host-resource recommendations. Replaces
@@ -51,7 +51,7 @@ entries:
     version: 1.1.0
   - apiVersion: v2
     appVersion: 5.3.0
-    created: "2026-05-14T20:41:40.83222873Z"
+    created: "2026-05-14T20:49:17.714343787Z"
     description: 'Custom Helm chart for Azure AI Speech disconnected containers (Speech-to-Text
       and Neural Text-to-Speech). Fully parameterised CPU and memory (request + limit)
       per container, aligned with Microsoft Learn host-resource recommendations. Replaces
@@ -75,7 +75,7 @@ entries:
     version: 1.0.2
   - apiVersion: v2
     appVersion: 5.3.0
-    created: "2026-05-14T20:41:40.831691852Z"
+    created: "2026-05-14T20:49:17.713832642Z"
     description: 'Custom Helm chart for Azure AI Speech disconnected containers (Speech-to-Text
       and Neural Text-to-Speech). Fully parameterised CPU and memory (request + limit)
       per container, aligned with Microsoft Learn host-resource recommendations. Replaces
@@ -99,7 +99,7 @@ entries:
     version: 1.0.1
   - apiVersion: v2
     appVersion: 5.3.0
-    created: "2026-05-14T20:41:40.831111011Z"
+    created: "2026-05-14T20:49:17.713253636Z"
     description: 'Custom Helm chart for Azure AI Speech disconnected containers (Speech-to-Text
       and Neural Text-to-Speech). Fully parameterised CPU and memory (request + limit)
       per container, aligned with Microsoft Learn host-resource recommendations. Replaces
@@ -121,4 +121,4 @@ entries:
     urls:
     - https://osshaikh.github.io/speechconatiners/speech-container-1.0.0.tgz
     version: 1.0.0
-generated: "2026-05-14T20:41:40.830397284Z"
+generated: "2026-05-14T20:49:17.712572568Z"
