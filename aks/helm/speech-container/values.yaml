@@ -81,13 +81,45 @@ podDisruptionBudget:
 
 # ---- service -----------------------------------------------------------------
 service:
-  type: LoadBalancer                  # ClusterIP | NodePort | LoadBalancer
-  # Default port auto-selected by mode: stt=5000, tts=5000
+  # Default ClusterIP — exposure is via the shared NGINX Ingress (see ingress: block below).
+  # Override to LoadBalancer for demos / parallel rollout where each container needs its own public IP.
+  type: ClusterIP                     # ClusterIP | NodePort | LoadBalancer
   port: 5000
   targetPort: 5000
   annotations: {}
-  # For Azure internal LB:
+  # For Azure internal LB (only relevant if type=LoadBalancer):
   #   service.beta.kubernetes.io/azure-load-balancer-internal: "true"
+
+# ---- ingress -----------------------------------------------------------------
+# When enabled, each release publishes ONE Ingress rule on a shared hostname.
+# NGINX Ingress Controller automatically merges rules from different Ingress
+# objects that share the same `host`, so the 4 releases (stt-en, stt-hi,
+# tts-en, tts-hi) end up as one virtual site:
+#
+#   wss://<host>/stt/en-US/speech/recognition/...   -> svc/stt-en
+#   wss://<host>/stt/hi-IN/speech/recognition/...   -> svc/stt-hi
+#   http://<host>/tts/en-US/cognitiveservices/v1    -> svc/tts-en
+#   http://<host>/tts/hi-IN/cognitiveservices/v1    -> svc/tts-hi
+#
+# The path prefix (e.g. /stt/en-US) is stripped before forwarding so the
+# container sees its native URL structure unchanged.
+ingress:
+  enabled: false
+  className: nginx                    # ingressClassName (must match installed controller)
+  host: speech.bfl.internal           # shared hostname across all 4 releases
+  path: ""                            # REQUIRED per release (e.g. /stt/en-US)  -- set in examples/*.yaml
+  # WebSocket / long-call timeouts (seconds). 1h covers most call-center sessions.
+  proxyReadTimeout: "3600"
+  proxySendTimeout: "3600"
+  # Max request body for TTS SSML payloads
+  proxyBodySize: "10m"
+  # Extra controller-specific annotations (merged on top of the WebSocket defaults)
+  annotations: {}
+    # nginx.ingress.kubernetes.io/auth-type: basic
+    # nginx.ingress.kubernetes.io/limit-rps: "50"
+  tls:
+    enabled: false
+    secretName: ""                    # name of pre-existing TLS secret (cert-manager or BYO)
 
 # ---- pod scheduling ----------------------------------------------------------
 nodeSelector: {}

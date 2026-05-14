@@ -109,12 +109,66 @@ helm upgrade --install speech-stt-en . \
 | `resources.limits.memory` | `"12Gi"` | STT default; bump to `"16Gi"` for TTS |
 | `concurrency.numberOfConcurrentRequest` | `5` | Sets `DECODER_MAX_COUNT` env var |
 | `replicaCount` | `1` | Static replicas (ignored if HPA enabled) |
-| `autoscaling.enabled` | `false` | Enable HPA v2 (CPU-based) |
+| `autoscaling.enabled` | `true` | Enable HPA v2 (CPU-based, 70% target) |
 | `autoscaling.minReplicas` | `1` | |
 | `autoscaling.maxReplicas` | `5` | |
-| `service.type` | `LoadBalancer` | Use `ClusterIP` for private/APIM-fronted |
+| `service.type` | `ClusterIP` | Switch to `LoadBalancer` only if NOT using Ingress |
 | `service.annotations` | `{}` | Add `service.beta.kubernetes.io/azure-load-balancer-internal: "true"` for internal LB |
+| `ingress.enabled` | `false` | Enable shared NGINX Ingress (see Ingress section below) |
+| `ingress.host` | `speech.bfl.internal` | Shared hostname across all 4 releases |
+| `ingress.path` | `""` (REQUIRED if enabled) | Per-release prefix, e.g. `/stt/en-US` |
 | `podDisruptionBudget.enabled` | `false` | Recommended for prod |
+
+## Ingress (shared hostname for all 4 containers)
+
+When `ingress.enabled=true`, each release publishes one Ingress rule on a shared
+host. NGINX Ingress Controller automatically merges rules from different Ingress
+objects that share the same `host`, so the 4 releases end up as one virtual site:
+
+```
+wss://speech.bfl.internal/stt/en-US/speech/recognition/...   -> svc/stt-en
+wss://speech.bfl.internal/stt/hi-IN/speech/recognition/...   -> svc/stt-hi
+http://speech.bfl.internal/tts/en-US/cognitiveservices/v1    -> svc/tts-en
+http://speech.bfl.internal/tts/hi-IN/cognitiveservices/v1    -> svc/tts-hi
+```
+
+The path prefix (e.g. `/stt/en-US`) is **stripped before forwarding** so the
+container sees its native URLs unchanged. Configured via NGINX `rewrite-target`
+with a regex path.
+
+### Prerequisites
+1. NGINX Ingress Controller installed in the cluster:
+   ```powershell
+   helm repo add ingress-nginx https://kubernetes.github.io/ingress-nginx
+   helm install ingress-nginx ingress-nginx/ingress-nginx -n ingress-nginx --create-namespace
+   ```
+2. DNS: point `speech.bfl.internal` (or your chosen host) at the ingress LB IP:
+   ```powershell
+   kubectl -n ingress-nginx get svc ingress-nginx-controller
+   ```
+
+### Built-in WebSocket / TTS tuning
+The chart sets these annotations on every Ingress automatically:
+- `nginx.ingress.kubernetes.io/proxy-read-timeout: "3600"` — long STT streams
+- `nginx.ingress.kubernetes.io/proxy-send-timeout: "3600"`
+- `nginx.ingress.kubernetes.io/proxy-body-size: "10m"` — TTS SSML payloads
+- `nginx.ingress.kubernetes.io/use-regex: "true"` — required by the rewrite rule
+
+NGINX detects the `Upgrade: websocket` header automatically — no extra annotation needed.
+
+### TLS
+Disabled by default. To enable, provide a pre-existing TLS secret:
+```yaml
+ingress:
+  enabled: true
+  tls:
+    enabled: true
+    secretName: speech-bfl-tls   # must contain tls.crt and tls.key
+```
+
+### Switching back to per-release LoadBalancer
+Set `ingress.enabled=false` and `service.type=LoadBalancer` per release. Useful
+during demos or parallel cutover.
 
 ## File layout
 

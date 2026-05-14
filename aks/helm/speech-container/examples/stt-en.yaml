@@ -24,5 +24,11 @@ autoscaling:
   targetCPUUtilizationPercentage: 70
 
 service:
-  type: LoadBalancer
+  type: ClusterIP
   port: 5000
+
+ingress:
+  enabled: true
+  className: nginx
+  host: speech.bfl.internal
+  path: /stt/en-US
