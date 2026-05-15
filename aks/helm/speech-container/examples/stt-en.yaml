@@ -25,3 +25,29 @@ ingress:
   className: nginx
   host: speech.bfl.internal
   path: /stt/en-US
+
+# ---- Pod scheduling: dedicated STT nodepool ---------------------------------
+# Expects a nodepool prepared as:
+#   az aks nodepool add ... --name sttpool \
+#     --node-taints workload=stt:NoSchedule \
+#     --labels workload=stt
+# Combination used:
+#   - toleration       -> lets this pod LAND on the STT-tainted nodes
+#   - soft nodeAffinity -> PREFERS STT nodes (weight 100), falls back to any
+#     untainted node if STT pool is unavailable (avoids stuck Pending)
+# Edit the value "stt" if your nodepool uses a different taint/label value.
+tolerations:
+  - key: workload
+    operator: Equal
+    value: stt
+    effect: NoSchedule
+
+affinity:
+  nodeAffinity:
+    preferredDuringSchedulingIgnoredDuringExecution:
+      - weight: 100
+        preference:
+          matchExpressions:
+            - key: workload
+              operator: In
+              values: ["stt"]

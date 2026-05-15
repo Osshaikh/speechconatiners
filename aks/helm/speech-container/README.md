@@ -119,27 +119,57 @@ helm upgrade --install speech-stt-en . \
 | `ingress.path` | `""` (REQUIRED if enabled) | Per-release prefix, e.g. `/stt/en-US` |
 | `podDisruptionBudget.enabled` | `false` | Recommended for prod |
 
-## Pod scheduling — toleration + soft affinity (recommended)
+## Pod scheduling — split-pool by default (STT and TTS on separate nodepools)
 
-Avoid hard `nodeSelector` for production. It pins pods to a single label and
-they get **stuck `Pending`** if that node group is cordoned, drained, down, or
-out of capacity. Use **toleration + soft (preferred) nodeAffinity** instead:
+The bundled examples now bake in the **split-pool pattern** as the default
+recommendation. Each example pins its release to its own dedicated nodepool:
+
+| Example file | Toleration / affinity target |
+|---|---|
+| `stt-en.yaml`, `stt-hi.yaml` | `workload=stt` |
+| `tts-en.yaml`, `tts-hi.yaml` | `workload=tts` |
+
+### Required cluster prep (one-time)
+
+```bash
+# STT nodepool — compute-optimized SKU recommended
+az aks nodepool add --cluster-name <cluster> --resource-group <rg> \
+  --name sttpool \
+  --node-vm-size Standard_F16s_v2 \
+  --node-count 2 \
+  --node-taints workload=stt:NoSchedule \
+  --labels workload=stt
+
+# TTS nodepool — memory-optimized SKU recommended
+az aks nodepool add --cluster-name <cluster> --resource-group <rg> \
+  --name ttspool \
+  --node-vm-size Standard_E16s_v5 \
+  --node-count 2 \
+  --node-taints workload=tts:NoSchedule \
+  --labels workload=tts
+```
+
+### Why this combination
 
 | Mechanism | Role |
 |---|---|
-| Taint on node (`workload=speech:NoSchedule`) | Repels everything except Speech pods |
-| Toleration on pod | Lets the pod *land* on tainted speech nodes |
-| Soft `preferredDuringScheduling` nodeAffinity | *Prefers* speech nodes (weight 100), but falls back to any node that fits if speech pool is unhealthy |
+| Taint on node (`workload=stt:NoSchedule` / `workload=tts:NoSchedule`) | Repels everything except matching pod kind |
+| Toleration on pod | Lets the pod *land* on its target pool |
+| Soft `preferredDuringScheduling` nodeAffinity | *Prefers* the matching pool (weight 100), falls back to any untainted node if that pool is unhealthy — no "stuck Pending" |
 
-Apply via `examples/prod-overrides.yaml`:
+Hard `nodeSelector` is intentionally NOT used: it pins pods so tightly that a
+cordoned/drained/down pool leaves them Pending forever.
+
+### Want a single shared pool instead? (simpler topology)
+
+Layer `prod-overrides.yaml` on top — it REPLACES the per-example tolerations
+with a single shared `workload=speech` target:
 
 ```bash
-helm upgrade --install stt-en osshaikh/speech-container \
+helm install stt-en osshaikh/speech-container \
   -f stt-en.yaml \
-  -f prod-overrides.yaml
+  -f prod-overrides.yaml          # collapses to 1-pool design
 ```
-
-Same overrides file is reusable across all 4 releases.
 
 ## Resource tuning (override defaults at install / upgrade)
 

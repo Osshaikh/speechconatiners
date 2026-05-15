@@ -26,3 +26,23 @@ ingress:
   className: nginx
   host: speech.bfl.internal
   path: /tts/hi-IN
+
+# ---- Pod scheduling: dedicated TTS nodepool ---------------------------------
+# Expects nodes tainted workload=tts:NoSchedule and labeled workload=tts.
+# Soft affinity = prefers TTS pool, falls back to any untainted node if TTS
+# pool is unavailable. See tts-en.yaml for full rationale.
+tolerations:
+  - key: workload
+    operator: Equal
+    value: tts
+    effect: NoSchedule
+
+affinity:
+  nodeAffinity:
+    preferredDuringSchedulingIgnoredDuringExecution:
+      - weight: 100
+        preference:
+          matchExpressions:
+            - key: workload
+              operator: In
+              values: ["tts"]
