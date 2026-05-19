@@ -14,7 +14,8 @@ Replaces the abandoned `microsoft/cognitive-services-speech-onpremise` chart (v0
 ## Table of Contents
 
 1. [Architecture overview](#architecture-overview)
-2. [Prerequisites](#prerequisites)
+2. [Capacity planning](#capacity-planning)
+3. [Prerequisites](#prerequisites)
    - [Azure subscription & quotas](#1-azure-subscription--quotas)
    - [Azure AI Speech resource](#2-azure-ai-speech-resource-billing-endpoint--api-key)
    - [AKS cluster sizing](#3-aks-cluster--node-recommendations)
@@ -62,6 +63,65 @@ Replaces the abandoned `microsoft/cognitive-services-speech-onpremise` chart (v0
 ```
 
 **Why split pools?** STT is CPU-bound, TTS is memory-bound (neural voice models load ~10 GB). Putting each workload on its own SKU family avoids over-provisioning.
+
+---
+
+## Capacity planning
+
+Use these throughput figures (validated by Microsoft Speech engineering, confirmed against in-field deployments) to size your cluster for a target call volume.
+
+### Per-pod throughput
+
+| Workload | Concurrency rule | 8-core pod | Pod throughput @ 30s/call |
+|---|---|---|---|
+| **STT** | **2 sessions per CPU core** | 8 × 2 = **16 concurrent sessions** | 16 × (3600/30) = **1,920 calls/hour** |
+| **TTS** | **5 sessions per 8-core pod** | 5 concurrent sessions | 5 × (3600/30) = **600 calls/hour** |
+
+> Assumes **average call duration of 30 seconds** (typical for IVR/voicebot turns). Adjust proportionally for your real traffic mix.
+
+### Sizing for a target volume
+
+Worked example — **100,000 calls/month**:
+
+```
+Average load     = 100,000 calls / 30 days / 24 hr ≈ 139 calls/hour
+Peak load (3×)   ≈ 420 calls/hour during business-hour peaks
+```
+
+**STT pods needed:**
+```
+Peak calls / pod throughput = 420 / 1,920 ≈ 1 pod active at peak
+Recommended: 2 pods minimum  (HA + headroom for traffic spikes)
+```
+
+**TTS pods needed:**
+```
+Peak calls / pod throughput = 420 / 600 ≈ 1 pod active at peak
+Recommended: 2 pods minimum  (HA + headroom)
+```
+
+### Reference sizing table
+
+| Monthly calls | Peak calls/hr (3×) | STT pods (req 4c/4Gi) | TTS pods (req 6c/12Gi) | Min sttpool | Min ttspool |
+|---|---|---|---|---|---|
+| 10 k    | ~42   | 1 (+ 1 HA) | 1 (+ 1 HA) | 1 × F16s_v2 | 1 × E16s_v5 |
+| 100 k   | ~420  | 2          | 2          | 2 × F16s_v2 | 2 × E16s_v5 |
+| 500 k   | ~2,100| 2          | 4          | 2 × F16s_v2 | 4 × E16s_v5 |
+| 1 M     | ~4,200| 3          | 7          | 3 × F16s_v2 | 7 × E16s_v5 |
+| 5 M     | ~21 k | 11         | 35         | 11 × F16s_v2| 35 × E16s_v5|
+
+> Node count = pod count when using chart minimum requests (1 pod/node fit on F16s_v2/E16s_v5 with our 4c-STT / 6c-TTS requests — see [density math](#configurable-values-reference)).
+> Increase peak multiplier (× factor) if your traffic profile is spikier (e.g., 5× for retail flash events, 10× for emergency campaigns).
+
+### Tunable assumptions in this model
+
+| Variable | Default | Where to change |
+|---|---|---|
+| Average call duration | 30 s | Multiply formula by `(your_avg_seconds / 30)` |
+| STT concurrency/core | 2 sessions | `numberOfConcurrentRequest` env var (also `DECODER_MAX_COUNT`) |
+| TTS concurrency/8-core pod | 5 sessions | `numberOfConcurrentRequest` env var |
+| Peak-to-average ratio | 3× | Depends on traffic shape (BFSI ≈ 2×, retail ≈ 3–5×) |
+| HA replicas | +1 baseline | Maintain at least 2 pods per workload always |
 
 ---
 
@@ -116,12 +176,14 @@ Then purchase a **disconnected container commitment** via the Azure portal: Spee
 
 ### 3. AKS cluster + node recommendations
 
-**Per-container resource minimums** (Microsoft Learn):
+**Per-container resource requirements** (Microsoft Learn — disconnected container host sizing):
 
-| Workload | Min request | Recommended request | Memory needs |
+| Workload | **Minimum** | **Recommended** | Notes |
 |---|---|---|---|
-| **STT** (Speech-to-Text) | 4 cores / 4 GB | 8 cores / 8 GB | + 4–8 GB for model load |
-| **Neural TTS** | 6 cores / 12 GB | 8 cores / 16 GB | Larger voice models = more RAM |
+| **STT** (Speech-to-Text) | **4 cores / 4 GB** | **8 cores / 8 GB** | + 4–8 GB headroom for speech model load at startup |
+| **Neural TTS** | **6 cores / 12 GB** | **8 cores / 16 GB** | Larger voice models = more RAM; synthesis bursts at 16 GB |
+
+Chart 1.1.4 ships with **minimums** as the example request values; limits stay at the chart default `8c / 16Gi` so the container can burst to recommended sizing under load without rejection.
 
 **Recommended SKU families:**
 
