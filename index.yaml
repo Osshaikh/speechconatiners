@@ -3,13 +3,13 @@ entries:
   speech-container:
   - apiVersion: v2
     appVersion: 5.3.0
-    created: "2026-05-19T11:04:46.882359366Z"
+    created: "2026-05-19T17:19:59.107610206Z"
     description: 'Custom Helm chart for Azure AI Speech disconnected containers (Speech-to-Text
       and Neural Text-to-Speech). Fully parameterised CPU and memory (request + limit)
       per container, aligned with Microsoft Learn host-resource recommendations. Replaces
       the abandoned microsoft/cognitive-services-speech-onpremise chart (v0.3.3, June
       2021) which hardcodes memory and computes CPU from a hidden formula. '
-    digest: e90346a13d0e12bbea9065aca775ae4e6cac5c740780ae2bf6dc37113dabd259
+    digest: 72ffd09d6dca3eaedffc146dfa8fc2931a8bc77cc0fb54efb7bb176bd9df78f7
     keywords:
     - azure
     - speech
@@ -27,7 +27,7 @@ entries:
     version: 1.1.4
   - apiVersion: v2
     appVersion: 5.3.0
-    created: "2026-05-19T11:04:46.881606898Z"
+    created: "2026-05-19T17:19:59.106575979Z"
     description: 'Custom Helm chart for Azure AI Speech disconnected containers (Speech-to-Text
       and Neural Text-to-Speech). Fully parameterised CPU and memory (request + limit)
       per container, aligned with Microsoft Learn host-resource recommendations. Replaces
@@ -51,7 +51,7 @@ entries:
     version: 1.1.3
   - apiVersion: v2
     appVersion: 5.3.0
-    created: "2026-05-19T11:04:46.880961021Z"
+    created: "2026-05-19T17:19:59.106071279Z"
     description: 'Custom Helm chart for Azure AI Speech disconnected containers (Speech-to-Text
       and Neural Text-to-Speech). Fully parameterised CPU and memory (request + limit)
       per container, aligned with Microsoft Learn host-resource recommendations. Replaces
@@ -75,7 +75,7 @@ entries:
     version: 1.1.2
   - apiVersion: v2
     appVersion: 5.3.0
-    created: "2026-05-19T11:04:46.880342566Z"
+    created: "2026-05-19T17:19:59.105523113Z"
     description: 'Custom Helm chart for Azure AI Speech disconnected containers (Speech-to-Text
       and Neural Text-to-Speech). Fully parameterised CPU and memory (request + limit)
       per container, aligned with Microsoft Learn host-resource recommendations. Replaces
@@ -99,7 +99,7 @@ entries:
     version: 1.1.1
   - apiVersion: v2
     appVersion: 5.3.0
-    created: "2026-05-19T11:04:46.879715698Z"
+    created: "2026-05-19T17:19:59.105040246Z"
     description: 'Custom Helm chart for Azure AI Speech disconnected containers (Speech-to-Text
       and Neural Text-to-Speech). Fully parameterised CPU and memory (request + limit)
       per container, aligned with Microsoft Learn host-resource recommendations. Replaces
@@ -123,7 +123,7 @@ entries:
     version: 1.1.0
   - apiVersion: v2
     appVersion: 5.3.0
-    created: "2026-05-19T11:04:46.879109722Z"
+    created: "2026-05-19T17:19:59.104556859Z"
     description: 'Custom Helm chart for Azure AI Speech disconnected containers (Speech-to-Text
       and Neural Text-to-Speech). Fully parameterised CPU and memory (request + limit)
       per container, aligned with Microsoft Learn host-resource recommendations. Replaces
@@ -147,7 +147,7 @@ entries:
     version: 1.0.2
   - apiVersion: v2
     appVersion: 5.3.0
-    created: "2026-05-19T11:04:46.878552479Z"
+    created: "2026-05-19T17:19:59.104128183Z"
     description: 'Custom Helm chart for Azure AI Speech disconnected containers (Speech-to-Text
       and Neural Text-to-Speech). Fully parameterised CPU and memory (request + limit)
       per container, aligned with Microsoft Learn host-resource recommendations. Replaces
@@ -171,7 +171,7 @@ entries:
     version: 1.0.1
   - apiVersion: v2
     appVersion: 5.3.0
-    created: "2026-05-19T11:04:46.877978591Z"
+    created: "2026-05-19T17:19:59.103648901Z"
     description: 'Custom Helm chart for Azure AI Speech disconnected containers (Speech-to-Text
       and Neural Text-to-Speech). Fully parameterised CPU and memory (request + limit)
       per container, aligned with Microsoft Learn host-resource recommendations. Replaces
@@ -193,4 +193,4 @@ entries:
     urls:
     - https://osshaikh.github.io/speechconatiners/speech-container-1.0.0.tgz
     version: 1.0.0
-generated: "2026-05-19T11:04:46.877285153Z"
+generated: "2026-05-19T17:19:59.103067747Z"
