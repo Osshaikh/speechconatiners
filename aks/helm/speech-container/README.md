@@ -16,13 +16,11 @@ Replaces the abandoned `microsoft/cognitive-services-speech-onpremise` chart (v0
 1. [Architecture overview](#architecture-overview)
 2. [Capacity planning](#capacity-planning)
 3. [Prerequisites](#prerequisites)
-   - [Azure subscription & quotas](#1-azure-subscription--quotas)
-   - [Azure AI Speech resource](#2-azure-ai-speech-resource-billing-endpoint--api-key)
-   - [AKS cluster sizing](#3-aks-cluster--node-recommendations)
-   - [Network whitelisting](#4-network--firewall-whitelisting)
-   - [Taints & labels](#5-node-taints--labels-split-pool-pattern)
-   - [Kubernetes secret](#6-kubernetes-secret-for-speech-credentials)
-   - [Ingress controller](#7-optional-ingress-controller)
+   - [Azure AI Speech resource](#1-azure-ai-speech-resource-billing-endpoint--api-key)
+   - [Network whitelisting](#2-network--firewall-whitelisting)
+   - [Taints & labels](#3-node-taints--labels-split-pool-pattern)
+   - [Kubernetes secret](#4-kubernetes-secret-for-speech-credentials)
+   - [Ingress controller](#5-optional-ingress-controller)
 3. [Installing the chart](#installing-the-chart)
 4. [Configurable values reference](#configurable-values-reference)
 5. [Install command examples](#install-command-examples)
@@ -69,6 +67,25 @@ Replaces the abandoned `microsoft/cognitive-services-speech-onpremise` chart (v0
 ## Capacity planning
 
 Use these throughput figures (validated by Microsoft Speech engineering, confirmed against in-field deployments) to size your cluster for a target call volume.
+
+### Per-container resource requirements
+
+Microsoft Learn — disconnected container host sizing per pod:
+
+| Workload | **Minimum** | **Recommended** | Notes |
+|---|---|---|---|
+| **STT** (Speech-to-Text) | **4 cores / 4 GB** | **8 cores / 8 GB** | + 4–8 GB headroom for speech model load at startup |
+| **Neural TTS** | **6 cores / 12 GB** | **8 cores / 16 GB** | Larger voice models = more RAM; synthesis bursts at 16 GB |
+
+Chart 1.1.4 ships with **minimums** as the example request values; limits stay at the chart default `8c / 16Gi` so the container can burst to recommended sizing under load without rejection.
+
+### Recommended node SKU families
+
+| Pool | SKU | Why | Density (1.1.4 requests) |
+|---|---|---|---|
+| **System** (`syspool`) | D4ds_v5 (4c / 16 GB) | General purpose, runs CoreDNS, ingress, addons | n/a |
+| **STT** (`sttpool`) | **F16s_v2** (16c / 32 GB) | Compute-optimized — STT is CPU-bound | 2 pods/node safe (req 4c each) |
+| **TTS** (`ttspool`) | **E16s_v5** (16c / 128 GB) | Memory-optimized — neural voices need RAM | 2 pods/node safe (req 6c, 12Gi each) |
 
 ### Per-pod throughput
 
@@ -127,25 +144,7 @@ Recommended: 2 pods minimum  (HA + headroom)
 
 ## Prerequisites
 
-### 1. Azure subscription & quotas
-
-- An Azure subscription with **Owner** or **Contributor** + **User Access Administrator** at the resource group scope.
-- Sufficient **regional vCPU quota**. Rule of thumb:
-
-  | Pool | Recommended SKU | vCPUs per node | Min nodes |
-  |---|---|---|---|
-  | System | Standard_D4ds_v5 | 4 | 2 |
-  | STT    | Standard_F16s_v2 or D16s_v6 | 16 | 2 |
-  | TTS    | Standard_E16s_v5 or E16s_v6 | 16 | 2 |
-
-  Minimum regional quota ≈ **72 vCPUs** for a 2-node-per-pool baseline. Check with:
-  ```bash
-  az vm list-usage --location <region> --query "[?contains(name.value,'cores')]" -o table
-  ```
-
-- **Azure AI Speech** resource quota: disconnected containers require a **Commitment Tier** purchase (or active disconnected container EA approval). Self-service trial keys won't work for offline use.
-
-### 2. Azure AI Speech resource (billing endpoint + API key)
+### 1. Azure AI Speech resource (billing endpoint + API key)
 
 You need a regular Azure AI Speech resource that the disconnected container "checks back" to (only during initial license activation, then runs fully offline).
 
@@ -174,67 +173,9 @@ echo "Key:      $KEY"
 
 Then purchase a **disconnected container commitment** via the Azure portal: Speech resource → Commitment Tiers → choose STT hours and/or TTS characters tier → enable **disconnected** mode.
 
-### 3. AKS cluster + node recommendations
+> ⚠️ Self-service trial keys won't work for offline use — disconnected containers require an active commitment tier or EA approval.
 
-**Per-container resource requirements** (Microsoft Learn — disconnected container host sizing):
-
-| Workload | **Minimum** | **Recommended** | Notes |
-|---|---|---|---|
-| **STT** (Speech-to-Text) | **4 cores / 4 GB** | **8 cores / 8 GB** | + 4–8 GB headroom for speech model load at startup |
-| **Neural TTS** | **6 cores / 12 GB** | **8 cores / 16 GB** | Larger voice models = more RAM; synthesis bursts at 16 GB |
-
-Chart 1.1.4 ships with **minimums** as the example request values; limits stay at the chart default `8c / 16Gi` so the container can burst to recommended sizing under load without rejection.
-
-**Recommended SKU families:**
-
-| Pool | SKU | Why | Density (1.1.4 requests) |
-|---|---|---|---|
-| **System** (`syspool`) | D4ds_v5 (4c/16GB) | General purpose, runs CoreDNS, ingress, addons | n/a |
-| **STT** (`sttpool`) | **F16s_v2** (16c/32GB) | Compute-optimized — STT is CPU-bound | 2 pods/node safe (req 4c each) |
-| **TTS** (`ttspool`) | **E16s_v5** (16c/128GB) | Memory-optimized — neural voices need RAM | 2 pods/node safe (req 6c, 12Gi each) |
-
-**Create cluster + pools:**
-
-```bash
-# 1. Create cluster with a small system pool
-az aks create \
-  --resource-group <rg> \
-  --name <aks-name> \
-  --node-count 2 \
-  --node-vm-size Standard_D4ds_v5 \
-  --nodepool-name syspool \
-  --network-plugin azure \
-  --generate-ssh-keys
-
-# 2. Add STT pool with taint + label
-az aks nodepool add \
-  --cluster-name <aks-name> \
-  --resource-group <rg> \
-  --name sttpool \
-  --node-vm-size Standard_F16s_v2 \
-  --node-count 2 \
-  --node-taints "workload=stt:NoSchedule" \
-  --labels "workload=stt" \
-  --mode User
-
-# 3. Add TTS pool with taint + label
-az aks nodepool add \
-  --cluster-name <aks-name> \
-  --resource-group <rg> \
-  --name ttspool \
-  --node-vm-size Standard_E16s_v5 \
-  --node-count 2 \
-  --node-taints "workload=tts:NoSchedule" \
-  --labels "workload=tts" \
-  --mode User
-
-# 4. Wire up kubectl
-az aks get-credentials -g <rg> -n <aks-name> --overwrite-existing
-```
-
-**Single shared pool alternative** (for cost-sensitive demos): use one `speechpool` with taint `workload=speech:NoSchedule` and apply `examples/prod-overrides.yaml` to collapse the split. See [Install command examples](#install-command-examples).
-
-### 4. Network / firewall whitelisting
+### 2. Network / firewall whitelisting
 
 Disconnected containers need network access only at specific moments. Egress rules:
 
@@ -249,7 +190,7 @@ Disconnected containers need network access only at specific moments. Egress rul
 
 **No inbound from the public internet is required** unless you expose ingress externally.
 
-### 5. Node taints & labels (split-pool pattern)
+### 3. Node taints & labels (split-pool pattern)
 
 The chart's example values files (chart 1.1.4+) expect these taints/labels:
 
@@ -269,7 +210,7 @@ If your nodepools use different taint values, override on install:
 helm install ... --set-json 'tolerations=[{"key":"workload","operator":"Equal","value":"my-custom","effect":"NoSchedule"}]'
 ```
 
-### 6. Kubernetes secret for Speech credentials
+### 4. Kubernetes secret for Speech credentials
 
 Create a Secret holding the billing URL + API key. The chart will mount these as env vars (not as plain CLI args, keeping the key out of `kubectl describe pod` output).
 
@@ -288,7 +229,7 @@ Key names default to `billing` and `apikey`. If your secret uses different keys,
 --set secretRef.apiKeyKey=ApiKey
 ```
 
-### 7. Optional: ingress controller
+### 5. Optional: ingress controller
 
 If you want hostname-based routing (e.g. `speech.example.com/stt/en-US`), install `ingress-nginx` once per cluster:
 
@@ -380,7 +321,7 @@ Concurrency cap (passed as `DECODER_MAX_COUNT` env var):
 | `service.targetPort` | `5000` | |
 | `ingress.enabled` | `false` (chart) / `true` (examples) | Per-release Ingress |
 | `ingress.className` | `nginx` | |
-| `ingress.host` | *(unset)* | Set in examples to `speech.bfl.internal` |
+| `ingress.host` | *(unset)* | Set in examples to `speech.example.com` |
 | `ingress.path` | *(unset)* | E.g. `/stt/en-US`, `/tts/hi-IN` |
 | `ingress.tls.enabled` | `false` | Set `true` + `secretName` for TLS |
 
@@ -411,7 +352,7 @@ helm install stt-en osshaikh/speech-container \
   -f examples/stt-en.yaml \
   --set secretRef.enabled=true
 ```
-**Result**: 4c/4Gi STT pod on `sttpool`, ingress at `speech.bfl.internal/stt/en-US`.
+**Result**: 4c/4Gi STT pod on `sttpool`, ingress at `speech.example.com/stt/en-US`.
 
 ### Example 2 — Quickstart TTS (Hindi)
 ```bash
@@ -420,7 +361,7 @@ helm install tts-hi osshaikh/speech-container \
   -f examples/tts-hi.yaml \
   --set secretRef.enabled=true
 ```
-**Result**: 6c/12Gi TTS pod on `ttspool`, ingress at `speech.bfl.internal/tts/hi-IN`.
+**Result**: 6c/12Gi TTS pod on `ttspool`, ingress at `speech.example.com/tts/hi-IN`.
 
 ### Example 3 — Override resources at install time
 ```bash
