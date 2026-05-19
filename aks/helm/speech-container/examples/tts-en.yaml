@@ -4,10 +4,16 @@ image:
   # Voice: AvaNeural (en-US female). Latest tag verified on MCR.
   tag: 4.6.0-amd64-en-us-avaneural
 
-# Inherits unified defaults from values.yaml: 8c / 8Gi req, 8c / 16Gi limit
+# Neural TTS minimum sizing per Microsoft Learn host-resource guidance.
+# Neural voices need more CPU + memory than STT for waveform synthesis.
+# Limits inherit from chart values.yaml (8c / 16Gi).
+resources:
+  requests:
+    cpu: "6"
+    memory: "12Gi"
 
 concurrency:
-  numberOfConcurrentRequest: 5
+  numberOfConcurrentRequest: 6
 
 replicaCount: 1
 

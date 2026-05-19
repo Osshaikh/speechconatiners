@@ -4,10 +4,15 @@ image:
   # Voice: SwaraNeural (hi-IN female). Alternatives: madhurneural (M), aartineural (F)
   tag: 4.6.0-amd64-hi-in-swaraneural
 
-# Inherits unified defaults from values.yaml: 8c / 8Gi req, 8c / 16Gi limit
+# Neural TTS minimum sizing per Microsoft Learn host-resource guidance.
+# Limits inherit from chart values.yaml (8c / 16Gi).
+resources:
+  requests:
+    cpu: "6"
+    memory: "12Gi"
 
 concurrency:
-  numberOfConcurrentRequest: 5
+  numberOfConcurrentRequest: 6
 
 replicaCount: 1
 
