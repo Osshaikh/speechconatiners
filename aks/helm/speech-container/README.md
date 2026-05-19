@@ -20,14 +20,15 @@ Replaces the abandoned `microsoft/cognitive-services-speech-onpremise` chart (v0
    - [Network whitelisting](#2-network--firewall-whitelisting)
    - [Taints & labels](#3-node-taints--labels-split-pool-pattern)
    - [Kubernetes secret](#4-kubernetes-secret-for-speech-credentials)
-   - [Ingress controller](#5-optional-ingress-controller)
+   - [Ingress controller](#5-ingress-controller)
 3. [Installing the chart](#installing-the-chart)
 4. [Configurable values reference](#configurable-values-reference)
 5. [Install command examples](#install-command-examples)
-6. [Verifying the install](#verifying-the-install)
-7. [Upgrading & rolling back](#upgrading--rolling-back)
-8. [Uninstalling](#uninstalling)
-9. [Troubleshooting](#troubleshooting)
+6. [Adding additional language containers](#adding-additional-language-containers)
+7. [Verifying the install](#verifying-the-install)
+8. [Upgrading & rolling back](#upgrading--rolling-back)
+9. [Uninstalling](#uninstalling)
+10. [Troubleshooting](#troubleshooting)
 
 ---
 
@@ -229,9 +230,9 @@ Key names default to `billing` and `apikey`. If your secret uses different keys,
 --set secretRef.apiKeyKey=ApiKey
 ```
 
-### 5. Optional: ingress controller
+### 5. Ingress controller
 
-If you want hostname-based routing (e.g. `speech.example.com/stt/en-US`), install `ingress-nginx` once per cluster:
+The chart's example values enable an Ingress resource per release for hostname-based routing (e.g. `speech.example.com/stt/en-US`). Install `ingress-nginx` once per cluster before installing the speech chart:
 
 ```bash
 helm repo add ingress-nginx https://kubernetes.github.io/ingress-nginx
@@ -240,7 +241,10 @@ helm install ingress-nginx ingress-nginx/ingress-nginx \
   --set controller.service.type=LoadBalancer
 ```
 
-Otherwise the chart's `ClusterIP` service can be reached via `kubectl port-forward`.
+After install, capture the external IP and point your DNS (or `/etc/hosts` for testing) at it:
+```bash
+kubectl get svc -n ingress-nginx ingress-nginx-controller -o jsonpath='{.status.loadBalancer.ingress[0].ip}'
+```
 
 ---
 
@@ -394,15 +398,22 @@ helm install stt-en osshaikh/speech-container -n speech \
 ```
 `prod-overrides.yaml` replaces the STT-specific toleration with `workload=speech` so STT and TTS share one pool.
 
-### Example 6 — Custom toleration value
+### Example 6 — Custom toleration value (key=value form)
 If your nodepool taint is `dedicated=speech-prod:NoSchedule`:
 ```bash
 helm install stt-en osshaikh/speech-container -n speech \
   -f examples/stt-en.yaml \
   --set secretRef.enabled=true \
-  --set-json 'tolerations=[{"key":"dedicated","operator":"Equal","value":"speech-prod","effect":"NoSchedule"}]' \
-  --set-json 'affinity.nodeAffinity.preferredDuringSchedulingIgnoredDuringExecution=[{"weight":100,"preference":{"matchExpressions":[{"key":"dedicated","operator":"In","values":["speech-prod"]}]}}]'
+  --set tolerations[0].key=dedicated \
+  --set tolerations[0].operator=Equal \
+  --set tolerations[0].value=speech-prod \
+  --set tolerations[0].effect=NoSchedule \
+  --set affinity.nodeAffinity.preferredDuringSchedulingIgnoredDuringExecution[0].weight=100 \
+  --set affinity.nodeAffinity.preferredDuringSchedulingIgnoredDuringExecution[0].preference.matchExpressions[0].key=dedicated \
+  --set affinity.nodeAffinity.preferredDuringSchedulingIgnoredDuringExecution[0].preference.matchExpressions[0].operator=In \
+  --set affinity.nodeAffinity.preferredDuringSchedulingIgnoredDuringExecution[0].preference.matchExpressions[0].values[0]=speech-prod
 ```
+> Helm arrays REPLACE — when using `--set toleration[0]…` together with `-f stt-en.yaml`, your `--set` values fully replace the example's toleration list.
 
 ### Example 7 — Disable HPA, fix replica count
 ```bash
@@ -441,6 +452,85 @@ for rel in stt-en stt-hi tts-en tts-hi; do
     --set secretRef.enabled=true
 done
 ```
+
+---
+
+## Adding additional language containers
+
+The chart is language-agnostic — to deploy any locale Microsoft publishes on MCR, override `image.repository` + `image.tag` at install time. You can reuse the STT or TTS example file for scheduling/resources and just swap the image.
+
+### Image naming pattern
+
+| Workload | Repository | Tag pattern |
+|---|---|---|
+| **STT** | `mcr.microsoft.com/azure-cognitive-services/speechservices/speech-to-text` | `<version>-amd64-<locale>` (e.g. `5.3.0-amd64-ta-in`) |
+| **TTS** | `mcr.microsoft.com/azure-cognitive-services/speechservices/neural-text-to-speech` | `<version>-amd64-<locale>-<voice>neural` (e.g. `4.6.0-amd64-ta-in-pallavineural`) |
+
+Locale codes follow BCP-47: `en-US`, `hi-IN`, `ta-IN`, `te-IN`, `mr-IN`, `bn-IN`, `gu-IN`, `kn-IN`, `ml-IN`, `pa-IN`, `ur-IN`, etc.
+
+Browse all available tags: https://mcr.microsoft.com/en-us/catalog?search=speech
+
+### Example 11 — Tamil STT
+```bash
+helm install stt-ta osshaikh/speech-container -n speech \
+  -f examples/stt-en.yaml \
+  --set secretRef.enabled=true \
+  --set image.repository=mcr.microsoft.com/azure-cognitive-services/speechservices/speech-to-text \
+  --set image.tag=5.3.0-amd64-ta-in \
+  --set ingress.path=/stt/ta-IN
+```
+**Result**: Tamil STT pod on `sttpool`, ingress at `speech.example.com/stt/ta-IN`. Inherits STT toleration, affinity, and resource requests (4c/4Gi) from `examples/stt-en.yaml`.
+
+### Example 12 — Tamil TTS (Pallavi neural voice)
+```bash
+helm install tts-ta osshaikh/speech-container -n speech \
+  -f examples/tts-en.yaml \
+  --set secretRef.enabled=true \
+  --set image.repository=mcr.microsoft.com/azure-cognitive-services/speechservices/neural-text-to-speech \
+  --set image.tag=4.6.0-amd64-ta-in-pallavineural \
+  --set ingress.path=/tts/ta-IN
+```
+**Result**: Tamil TTS pod on `ttspool`, ingress at `speech.example.com/tts/ta-IN`. Inherits TTS toleration, affinity, and resource requests (6c/12Gi).
+
+### Example 13 — Generic "add any language" pattern
+Substitute `<LOCALE>`, `<VERSION>`, `<VOICE>`, `<RELEASE>`:
+```bash
+# STT - any language
+helm install <RELEASE> osshaikh/speech-container -n speech \
+  -f examples/stt-en.yaml \
+  --set secretRef.enabled=true \
+  --set image.tag=<VERSION>-amd64-<LOCALE> \
+  --set ingress.path=/stt/<LOCALE>
+
+# TTS - any neural voice
+helm install <RELEASE> osshaikh/speech-container -n speech \
+  -f examples/tts-en.yaml \
+  --set secretRef.enabled=true \
+  --set image.tag=<VERSION>-amd64-<LOCALE>-<VOICE>neural \
+  --set ingress.path=/tts/<LOCALE>
+```
+
+### Example 14 — Bulk install many languages
+```bash
+# STT for English, Hindi, Tamil, Telugu, Marathi
+declare -A STT_LANGS=(
+  [en]="5.3.0-amd64-en-us"
+  [hi]="5.3.0-amd64-hi-in"
+  [ta]="5.3.0-amd64-ta-in"
+  [te]="5.3.0-amd64-te-in"
+  [mr]="5.3.0-amd64-mr-in"
+)
+
+for lang in "${!STT_LANGS[@]}"; do
+  helm install stt-$lang osshaikh/speech-container -n speech \
+    -f examples/stt-en.yaml \
+    --set secretRef.enabled=true \
+    --set image.tag=${STT_LANGS[$lang]} \
+    --set ingress.path=/stt/$lang
+done
+```
+
+> ⚠️ Verify each image tag exists on MCR before installing — `docker pull <repo>:<tag>` from a workstation with MCR access is the fastest way. Container won't start if the tag is invalid.
 
 ---
 
