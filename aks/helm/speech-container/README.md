@@ -80,13 +80,13 @@ Microsoft Learn — disconnected container host sizing per pod:
 
 Chart 1.1.4 ships with **minimums** as the example request values; limits stay at the chart default `8c / 16Gi` so the container can burst to recommended sizing under load without rejection.
 
-### Recommended node SKU families
+### Recommended node families
 
-| Pool | SKU | Why | Density (1.1.4 requests) |
-|---|---|---|---|
-| **System** (`syspool`) | D4ds_v5 (4c / 16 GB) | General purpose, runs CoreDNS, ingress, addons | n/a |
-| **STT** (`sttpool`) | **F16s_v2** (16c / 32 GB) | Compute-optimized — STT is CPU-bound | 2 pods/node safe (req 4c each) |
-| **TTS** (`ttspool`) | **E16s_v5** (16c / 128 GB) | Memory-optimized — neural voices need RAM | 2 pods/node safe (req 6c, 12Gi each) |
+| Pool | Family | Sizing per node | Why | Density (1.1.4 requests) |
+|---|---|---|---|---|
+| **System** (`syspool`) | General purpose | 4 cores / 16 GB | Runs CoreDNS, ingress, addons | n/a |
+| **STT** (`sttpool`) | **Compute-optimized** | 16 cores / 32 GB | STT is CPU-bound | 2 pods/node safe (req 4c each) |
+| **TTS** (`ttspool`) | **Memory-optimized** | 16 cores / 128 GB | Neural voices need RAM | 2 pods/node safe (req 6c / 12Gi each) |
 
 ### Per-pod throughput
 
@@ -120,15 +120,15 @@ Recommended: 2 pods minimum  (HA + headroom)
 
 ### Reference sizing table
 
-| Monthly calls | Peak calls/hr (3×) | STT pods (req 4c/4Gi) | TTS pods (req 6c/12Gi) | Min sttpool | Min ttspool |
+| Monthly calls | Peak calls/hr (3×) | STT pods (req 4c/4Gi) | TTS pods (req 6c/12Gi) | Min sttpool nodes | Min ttspool nodes |
 |---|---|---|---|---|---|
-| 10 k    | ~42   | 1 (+ 1 HA) | 1 (+ 1 HA) | 1 × F16s_v2 | 1 × E16s_v5 |
-| 100 k   | ~420  | 2          | 2          | 2 × F16s_v2 | 2 × E16s_v5 |
-| 500 k   | ~2,100| 2          | 4          | 2 × F16s_v2 | 4 × E16s_v5 |
-| 1 M     | ~4,200| 3          | 7          | 3 × F16s_v2 | 7 × E16s_v5 |
-| 5 M     | ~21 k | 11         | 35         | 11 × F16s_v2| 35 × E16s_v5|
+| 10 k    | ~42   | 1 (+ 1 HA) | 1 (+ 1 HA) | 1 (compute-opt 16c)  | 1 (memory-opt 16c) |
+| 100 k   | ~420  | 2          | 2          | 2 (compute-opt 16c)  | 2 (memory-opt 16c) |
+| 500 k   | ~2,100| 2          | 4          | 2 (compute-opt 16c)  | 4 (memory-opt 16c) |
+| 1 M     | ~4,200| 3          | 7          | 3 (compute-opt 16c)  | 7 (memory-opt 16c) |
+| 5 M     | ~21 k | 11         | 35         | 11 (compute-opt 16c) | 35 (memory-opt 16c) |
 
-> Node count = pod count when using chart minimum requests (1 pod/node fit on F16s_v2/E16s_v5 with our 4c-STT / 6c-TTS requests — see [density math](#configurable-values-reference)).
+> Node count = pod count when using chart minimum requests (1 pod/node fits on a 16-core node with our 4c-STT / 6c-TTS requests — see [density math](#configurable-values-reference)).
 > Increase peak multiplier (× factor) if your traffic profile is spikier (e.g., 5× for retail flash events, 10× for emergency campaigns).
 
 ### Tunable assumptions in this model
